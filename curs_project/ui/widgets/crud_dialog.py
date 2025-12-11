@@ -18,13 +18,11 @@ class ModernCRUDDialog:
         self.field_widgets = {}
         self.foreign_keys = {}
 
-        # флаг, чтобы применять особую логику только для purchases
         self.is_purchases = (self.table == "purchases")
-        self._status_key_map = None  # кеш для статусов
+        self._status_key_map = None
 
         self._create_dialog()
 
-    # ------------------------ UI СОЗДАНИЕ ОКНА ------------------------
 
     def _create_dialog(self):
         self.dlg = tb.Toplevel(self.parent)
@@ -74,7 +72,6 @@ class ModernCRUDDialog:
         self._load_form_fields()
         self._create_buttons()
 
-    # ------------------------ ПОЛЯ ФОРМЫ ------------------------
 
     def _load_form_fields(self):
         if not hasattr(self.parent, 'conn'):
@@ -84,11 +81,9 @@ class ModernCRUDDialog:
         self.field_widgets = {}
 
         for field, coltype, null, key, default, extra in cols_info:
-            # пропускаем автоинкрементные
             if self.mode == "add" and extra and "auto_increment" in extra.lower():
                 continue
 
-            # системные даты создания/загрузки не редактируем
             if field in ['created_at', 'uploaded_at']:
                 continue
 
@@ -117,15 +112,12 @@ class ModernCRUDDialog:
                 'var': widget_info.get('var')
             }
 
-            # привязка спец-логики для purchases
             self._attach_purchases_logic(field, self.field_widgets[field])
 
-        # после создания всех полей — первичная инициализация логики purchases
         if self.is_purchases:
             self._init_purchases_relations()
 
     def _create_input_field(self, field, coltype, value):
-        # -------- пароль --------
         if field == "password_hash":
             frame = tb.Frame(self.scrollable_frame)
             var = tb.StringVar(value=value if value else "")
@@ -151,7 +143,6 @@ class ModernCRUDDialog:
 
             return {'widget': frame, 'type': 'password', 'var': var}
 
-        # -------- foreign key --------
         is_foreign_key = self.parent._is_foreign_key(self.table, field)
         if is_foreign_key:
             ref_table, ref_column = self.parent._get_foreign_key_info(self.table, field)
@@ -178,7 +169,6 @@ class ModernCRUDDialog:
 
             return {'widget': combobox, 'type': 'foreign_key', 'var': var}
 
-        # -------- ENUM --------
         if "enum" in coltype.lower():
             enum_values = coltype.split("'")[1::2]
             var = tb.StringVar(value=value if value else enum_values[0] if enum_values else "")
@@ -191,7 +181,6 @@ class ModernCRUDDialog:
             )
             return {'widget': combobox, 'type': 'enum', 'var': var}
 
-        # -------- DATE/TIMESTAMP --------
         elif "date" in coltype.lower() or "timestamp" in coltype.lower():
             frame = tb.Frame(self.scrollable_frame)
             current_value = value if value else datetime.datetime.now().strftime("%Y-%m-%d")
@@ -215,20 +204,17 @@ class ModernCRUDDialog:
 
             return {'widget': frame, 'type': 'date', 'var': var}
 
-        # -------- TEXT --------
         elif "text" in coltype.lower():
             text_widget = tb.Text(self.scrollable_frame, height=4, font=("Segoe UI", 10))
             if value:
                 text_widget.insert("1.0", str(value))
             return {'widget': text_widget, 'type': 'text'}
 
-        # -------- ЧИСЛОВЫЕ --------
         elif "int" in coltype.lower() or "decimal" in coltype.lower() or "float" in coltype.lower():
             var = tb.StringVar(value=str(value) if value else "0")
             entry = tb.Entry(self.scrollable_frame, textvariable=var, font=("Segoe UI", 10))
             return {'widget': entry, 'type': 'numeric', 'var': var}
 
-        # -------- YEAR --------
         elif "year" in coltype.lower():
             current_year = datetime.datetime.now().year
             years = [str(y) for y in range(current_year - 30, current_year + 1)]
@@ -241,13 +227,11 @@ class ModernCRUDDialog:
             )
             return {'widget': combobox, 'type': 'year', 'var': var}
 
-        # -------- BASIC STRING --------
         else:
             var = tb.StringVar(value=str(value) if value else "")
             entry = tb.Entry(self.scrollable_frame, textvariable=var, font=("Segoe UI", 10))
             return {'widget': entry, 'type': 'basic', 'var': var}
 
-    # ------------------------ КНОПКИ ------------------------
 
     def _create_buttons(self):
         btn_frame = tb.Frame(self.dlg)
@@ -269,7 +253,6 @@ class ModernCRUDDialog:
             width=12
         ).pack(side="right", padx=5)
 
-    # ------------------------ ЧТЕНИЕ ЗНАЧЕНИЙ ------------------------
 
     def _get_field_value(self, field_info, field_name):
         try:
@@ -300,7 +283,6 @@ class ModernCRUDDialog:
             if not value:
                 return None
 
-            # foreign key: берём id
             if field_type == 'foreign_key':
                 if ' - ' in value:
                     first_part = value.split(' - ')[0].strip()
@@ -323,7 +305,6 @@ class ModernCRUDDialog:
             print(f"Помилка конвертації значення для поля {field_name}: {e}")
             return None
 
-    # ------------------------ СОХРАНЕНИЕ ------------------------
 
     def _save(self):
         try:
@@ -344,7 +325,6 @@ class ModernCRUDDialog:
                 messagebox.showwarning("Помилка", "Немає даних для збереження")
                 return
 
-            # дополнительные проверки и логика для purchases
             if self.is_purchases:
                 if not self._validate_and_adjust_purchases(filtered_data):
                     return
@@ -358,11 +338,6 @@ class ModernCRUDDialog:
         except Exception as e:
             messagebox.showerror("Помилка", f"Помилка збереження: {str(e)}")
 
-    # =================================================================
-    #                СПЕЦИАЛЬНАЯ ЛОГИКА ДЛЯ ТАБЛИЦЫ PURCHASES
-    # =================================================================
-
-    # -------- привязка trace к нужным полям --------
 
     def _attach_purchases_logic(self, field, field_info):
         if not self.is_purchases:
@@ -372,41 +347,27 @@ class ModernCRUDDialog:
         if not isinstance(var, tb.StringVar):
             return
 
-        # страна → фильтрует локации
         if field == "country_id":
             var.trace_add("write", self._on_country_change)
 
-        # изменение локации или даты покупки → пересчет даты прибытия
         if field in ("location_id", "purchase_date"):
             var.trace_add("write", self._on_location_or_date_change)
 
-        # изменение статуса → обновление is_delivered
         if field == "status_id":
             var.trace_add("write", self._on_status_change)
 
     def _init_purchases_relations(self):
-        """
-        Вызывается один раз после создания всех полей:
-        - подтягивает корректный список локаций по уже выбранной стране (в режиме edit)
-        - пересчитывает дату прибытия
-        - синхронизирует is_delivered со статусом
-        """
         try:
-            # страна → сразу отфильтровать локации
             if "country_id" in self.field_widgets and "location_id" in self.field_widgets:
                 self._on_country_change()
 
-            # пересчитать дату прибытия
             self._recalculate_estimated_arrival()
 
-            # статус → is_delivered
             if "status_id" in self.field_widgets:
                 self._on_status_change()
 
         except Exception as e:
             print("init_purchases_relations error:", e)
-
-    # -------- helper: карта статусов по ключу --------
 
     def _ensure_status_key_map(self):
         if self._status_key_map is not None:
@@ -420,7 +381,6 @@ class ModernCRUDDialog:
                 self._status_key_map[str(skey)] = int(sid)
         except Exception as e:
             print("status_key_map error:", e)
-            # fallback: если не удалось прочитать, подставим стандартные id
             self._status_key_map = {
                 "in_ukraine": 9,
                 "in_klaipeda": 6
@@ -430,7 +390,6 @@ class ModernCRUDDialog:
         self._ensure_status_key_map()
         return self._status_key_map.get(key, default)
 
-    # -------- реакция на изменение страны --------
 
     def _on_country_change(self, *args):
         if not self.is_purchases:
@@ -445,7 +404,6 @@ class ModernCRUDDialog:
             if not country_str:
                 return
 
-            # ожидаем формат "id - name"
             country_id_part = country_str.split(" - ")[0].strip()
             if not country_id_part.isdigit():
                 return
@@ -471,36 +429,28 @@ class ModernCRUDDialog:
             loc_combo['values'] = new_values
 
             current_val = loc_var.get()
-            # режим добавления — просто первая локация
             if self.mode == "add":
                 if new_values:
                     loc_var.set(new_values[0])
             else:
-                # режим редактирования — если текущей локации нет в списке, подставить первую
                 if current_val not in new_values and new_values:
                     loc_var.set(new_values[0])
 
-            # после смены страны и локаций — пересчитать дату прибытия
             self._recalculate_estimated_arrival()
 
         except Exception as e:
             print("on_country_change error:", e)
-
-    # -------- изменение локации или даты покупки --------
 
     def _on_location_or_date_change(self, *args):
         if not self.is_purchases:
             return
         self._recalculate_estimated_arrival()
 
-    # -------- пересчет estimated_arrival_date --------
-
     def _recalculate_estimated_arrival(self):
         if not self.is_purchases:
             return
 
         try:
-            # нужны purchase_date, location_id, estimated_arrival_date
             if "purchase_date" not in self.field_widgets:
                 return
             if "location_id" not in self.field_widgets:
@@ -515,7 +465,6 @@ class ModernCRUDDialog:
             try:
                 purchase_date = datetime.datetime.strptime(purchase_str, "%Y-%m-%d").date()
             except ValueError:
-                # некорректный формат, не считаем
                 return
 
             loc_var = self.field_widgets["location_id"]["var"]
@@ -529,7 +478,6 @@ class ModernCRUDDialog:
             location_id = int(loc_id_part)
 
             cur = self.parent.conn.cursor()
-            # из locations: days_to_port, default_port_id
             cur.execute(
                 """
                 SELECT days_to_port, default_port_id
@@ -544,7 +492,6 @@ class ModernCRUDDialog:
 
             days_to_port, default_port_id = loc_row
 
-            # из ports: delivery_to_europe_days
             cur.execute(
                 """
                 SELECT delivery_to_europe_days
@@ -559,7 +506,6 @@ class ModernCRUDDialog:
             else:
                 delivery_days = port_row[0]
 
-            # считаем дату
             total_days = int(days_to_port) + int(delivery_days) + 7
             arrival_date = purchase_date + datetime.timedelta(days=total_days)
 
@@ -569,8 +515,6 @@ class ModernCRUDDialog:
 
         except Exception as e:
             print("recalculate_estimated_arrival error:", e)
-
-    # -------- изменение статуса → обновление is_delivered --------
 
     def _on_status_change(self, *args):
         if not self.is_purchases:
@@ -597,32 +541,20 @@ class ModernCRUDDialog:
             delivered_var = self.field_widgets["is_delivered"]["var"]
 
             if status_id == in_ua_id:
-                # в Украине → доставлено
                 delivered_var.set("1")
             elif status_id == in_klaipeda_id:
-                # в Клайпеде → точно не доставлено
                 delivered_var.set("0")
             else:
-                # все остальные — по умолчанию не доставлено
                 delivered_var.set("0")
 
         except Exception as e:
             print("on_status_change error:", e)
 
-    # -------- VIN уникальность + проверки дат + логика delivered --------
 
     def _validate_and_adjust_purchases(self, data: dict) -> bool:
-        """
-        Возвращает True, если всё ок, False если нужно отменить сохранение.
-        Здесь:
-        - проверка уникальности VIN
-        - проверка дат
-        - проверка сочетания статуса и is_delivered
-        """
         try:
             cur = self.parent.conn.cursor()
 
-            # ---------- 1. Уникальный VIN ----------
             vin = data.get("vin_number")
             if vin:
                 if self.mode == "add":
@@ -631,7 +563,6 @@ class ModernCRUDDialog:
                         (vin,)
                     )
                 else:
-                    # в режиме редактирования игнорируем текущую запись
                     cur.execute(
                         """
                         SELECT purchase_id FROM purchases
@@ -647,7 +578,6 @@ class ModernCRUDDialog:
                     )
                     return False
 
-            # ---------- 2. Проверки дат ----------
             purchase_str = data.get("purchase_date")
             arrival_str = data.get("estimated_arrival_date")
 
@@ -682,7 +612,6 @@ class ModernCRUDDialog:
                         )
                         return False
 
-            # ---------- 3. Логика status_id ↔ is_delivered ----------
             status_id = data.get("status_id")
             is_delivered = data.get("is_delivered")
 
@@ -690,7 +619,6 @@ class ModernCRUDDialog:
             in_ua_id = self._get_status_id_by_key("in_ukraine", 9)
             in_klaipeda_id = self._get_status_id_by_key("in_klaipeda", 6)
 
-            # если статус "в Україні" — принудительно доставлено
             if status_id == in_ua_id:
                 data["is_delivered"] = 1
 

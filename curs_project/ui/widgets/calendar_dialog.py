@@ -90,13 +90,12 @@ class CalendarDialog:
             is_today = date.date() == datetime.datetime.now().date()
             is_selected = date.date() == self.selected_date.date()
 
-            # 🎨 Правильная логика выделения:
             if is_selected:
-                btn_style = "info"       # выбранная дата = яркая
+                btn_style = "info"     
             elif is_today:
-                btn_style = "secondary"  # сегодня = серый (если не выбрано)
+                btn_style = "secondary" 
             else:
-                btn_style = "default"    # обычные дни
+                btn_style = "default"
 
             btn = tb.Button(
                 self.calendar_frame,

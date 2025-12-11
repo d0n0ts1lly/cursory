@@ -21,7 +21,6 @@ class ImageCarousel(tb.Frame):
         self.image_labels = []
         self.current_user = current_user
         self.can_edit = current_user and current_user.get('role') == 'admin'
-        
         self._create_widgets()
         self._load_images()
     
@@ -75,7 +74,6 @@ class ImageCarousel(tb.Frame):
         if not self.images:
             no_images_frame = tb.Frame(self.carousel_frame)
             no_images_frame.pack(expand=True)
-            
             tb.Label(no_images_frame, text="📷 Немає фото для цього авто",
                     font=("Segoe UI", 10), bootstyle="secondary").pack(pady=20)
             
@@ -99,7 +97,7 @@ class ImageCarousel(tb.Frame):
                 pil_image = Image.open(image_url)
             elif image_url.startswith(('http://', 'https://')):
                 try:
-                    headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
+                    headers = {'User-Agent': 'Mozilla/5.0'}
                     req = urllib.request.Request(image_url, headers=headers)
                     ssl_context = ssl._create_unverified_context()
                     response = urllib.request.urlopen(req, timeout=10, context=ssl_context)
@@ -470,7 +468,6 @@ class ImageCarousel(tb.Frame):
                 if os.path.exists(path):
                     os.remove(path)
                     is_local_file = True
-                    print(f"🗑️ Видалено локальний файл: {path}")
                     break
             
             if not is_local_file and not image_url.startswith(('http://', 'https://')):

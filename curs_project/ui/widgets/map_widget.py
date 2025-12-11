@@ -8,31 +8,23 @@ from config import CANVAS_WIDTH, CANVAS_HEIGHT, ASSETS_DIR
 
 
 class MapWidget(tb.Frame):
-
     def __init__(self, parent, purchase_data):
         super().__init__(parent)
-
         self.purchase_data = purchase_data or {}
         self.zoom_factor = 1.0
         self.min_zoom = 0.6
         self.max_zoom = 1.8
-
         self.glow_phase = 0.0
         self.moving_phase = 0.0
         self._animation_job = None
-
-        # карта
         self.base_map_image = self._load_base_map()
         self.map_photo = None
         self._map_photo_zoom = None
-
         self.coords = self._build_coords()
         self._create_widgets()
         self._draw_map()
         self._start_glow_animation()
 
-
-    # ===== UI =====
     def _create_widgets(self):
         title = tb.Label(self, text="Маршрут доставки",
                          font=("Segoe UI", 12, "bold"))
@@ -48,7 +40,6 @@ class MapWidget(tb.Frame):
         )
         self.map_canvas.pack(fill="both", expand=True, padx=8, pady=(6, 4))
 
-        # zoom buttons
         zoom_frame = tb.Frame(self)
         zoom_frame.pack(pady=(0, 6))
 
@@ -67,53 +58,41 @@ class MapWidget(tb.Frame):
             bootstyle="secondary", command=self.zoom_in
         ).pack(side=LEFT, padx=2)
 
-
     def update_purchase(self, purchase_data):
         self.purchase_data = purchase_data or {}
         self._draw_map()
 
-
-    # ===== Coordinates =====
     def _build_coords(self):
         return {
             "Маямі (США)": (183, 148),
-            "Лос-Анджелес (США)": (135, 181),
+            "Лос-ААнджелес (США)": (135, 181),
             "Токіо (Японія)": (640, 170),
             "Шанхай (Китай)": (639, 182),
-
             "Берлін (Німеччина)": (376, 124),
             "Варшава (Польща)": (400, 115),
             "Вільнюс (Литва)": (415, 96),
-
             "Baltimore": (170, 157),
             "Hamburg": (377, 108),
             "Gdynia": (394, 108),
             "Klaipėda": (411, 93),
-
             "Україна": (427, 124)
         }
-
 
     def _resolve_coord_key(self, name):
         if not name:
             return None
         name = name.strip()
-
         if name in self.coords:
             return name
-
         base = name.split("(")[0].strip()
         for key in self.coords:
             if base in key:
                 return key
-
         for key in self.coords:
             if key in name:
                 return key
         return None
 
-
-    # ===== Map loading =====
     def _load_base_map(self):
         possible = [
             os.path.join(ASSETS_DIR, "world_map.png"),
@@ -128,34 +107,23 @@ class MapWidget(tb.Frame):
                     pass
         return None
 
-
     def _update_map_photo_for_zoom(self):
         if not self.base_map_image:
             return
-
         if self._map_photo_zoom == self.zoom_factor and self.map_photo:
             return
-
         w = int(CANVAS_WIDTH * self.zoom_factor)
         h = int(CANVAS_HEIGHT * self.zoom_factor)
-
         img = self.base_map_image.resize((w, h), Image.Resampling.LANCZOS)
         self.map_photo = ImageTk.PhotoImage(img)
         self._map_photo_zoom = self.zoom_factor
 
-
-    # ===== Route building =====
     def _build_route(self):
         loc = self._resolve_coord_key(self.purchase_data.get("location_name"))
         port = self._resolve_coord_key(self.purchase_data.get("port_name"))
         ua = "Україна"
         status = int(self.purchase_data.get("status_id", 1))
-
-        EUROPE = {
-            "Берлін (Німеччина)",
-            "Варшава (Польща)",
-            "Вільнюс (Литва)",
-        }
+        EUROPE = {"Берлін (Німеччина)", "Варшава (Польща)", "Вільнюс (Литва)"}
 
         if not loc or loc not in self.coords:
             return {}, [], None, None, None
@@ -166,10 +134,8 @@ class MapWidget(tb.Frame):
         active_segment = None
         car_position = None
 
-        # Europe route
         if loc in EUROPE:
             segments.append(("start", "ua"))
-
             if status in (1, 2):
                 active_point = "start"
             elif status in (3, 4, 5, 6, 7, 8):
@@ -177,10 +143,8 @@ class MapWidget(tb.Frame):
                 car_position = ("start", "ua")
             elif status == 9:
                 active_point = "ua"
-
             return points, segments, active_point, active_segment, car_position
 
-        # Ocean route
         if port in self.coords:
             points["port"] = self.coords[port]
             segments.append(("start", "port"))
@@ -191,7 +155,6 @@ class MapWidget(tb.Frame):
         points["klaipeda"] = self.coords["Klaipėda"]
         segments.append(("klaipeda", "ua"))
 
-        # state logic
         if status in (1, 2):
             active_point = "start"
         elif status == 3:
@@ -213,11 +176,8 @@ class MapWidget(tb.Frame):
 
         return points, segments, active_point, active_segment, car_position
 
-
-    # ===== Drawing =====
     def _draw_map(self):
         self.map_canvas.delete("all")
-
         self._update_map_photo_for_zoom()
         if self.map_photo:
             self.map_canvas.create_image(
@@ -230,25 +190,19 @@ class MapWidget(tb.Frame):
 
         LINE_COLOR = "#4A90E2"
         LINE_ACTIVE = "#0A84FF"
-
         POINT_BORDER = "#0A84FF"
         POINT_FILL = "#FFFFFF"
         POINT_ACTIVE = "#FFD60A"
-
         CAR_COLOR = "#FF9F0A"
 
         base_r = 4 * self.zoom_factor
 
-        # lines
         for (s, e) in segments:
             if s not in points or e not in points:
                 continue
-
             x1, y1 = self._scale_point(*points[s])
             x2, y2 = self._scale_point(*points[e])
-
             is_active = active_segment == (s, e)
-
             self.map_canvas.create_line(
                 x1, y1, x2, y2,
                 fill=LINE_ACTIVE if is_active else LINE_COLOR,
@@ -256,17 +210,14 @@ class MapWidget(tb.Frame):
                 smooth=True
             )
 
-        # moving point (car)
         if car_pos:
             (s, e) = car_pos
             if s in points and e in points:
                 x1, y1 = self._scale_point(*points[s])
                 x2, y2 = self._scale_point(*points[e])
-
                 px = (x1 + x2) / 2
                 py = (y1 + y2) / 2
                 r = 5 * self.zoom_factor + 2 * math.sin(self.moving_phase)
-
                 self.map_canvas.create_oval(
                     px - r, py - r,
                     px + r, py + r,
@@ -274,12 +225,9 @@ class MapWidget(tb.Frame):
                     outline=""
                 )
 
-        # points
         for pid, (xx, yy) in points.items():
             sx, sy = self._scale_point(xx, yy)
             is_active_p = (pid == active_point)
-
-            # glow
             if is_active_p:
                 phase = (math.sin(self.glow_phase) + 1) / 2
                 glow_r = base_r * (3.0 + 0.4 * phase)
@@ -290,7 +238,6 @@ class MapWidget(tb.Frame):
                     width=2
                 )
 
-            # outer
             self.map_canvas.create_oval(
                 sx - base_r, sy - base_r,
                 sx + base_r, sy + base_r,
@@ -299,7 +246,6 @@ class MapWidget(tb.Frame):
                 fill=POINT_FILL
             )
 
-            # inner
             self.map_canvas.create_oval(
                 sx - base_r*0.6, sy - base_r*0.6,
                 sx + base_r*0.6, sy + base_r*0.6,
@@ -307,8 +253,6 @@ class MapWidget(tb.Frame):
                 outline=""
             )
 
-
-    # ===== Animation =====
     def _start_glow_animation(self):
         if not self._animation_job:
             self._animate()
@@ -319,8 +263,6 @@ class MapWidget(tb.Frame):
         self._draw_map()
         self._animation_job = self.after(70, self._animate)
 
-
-    # ===== Zoom =====
     def _scale_point(self, x, y):
         cx, cy = CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2
         f = self.zoom_factor

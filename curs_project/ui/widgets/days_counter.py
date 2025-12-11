@@ -8,12 +8,10 @@ class DaysCounterWidget(tb.Frame):
         super().__init__(parent, padding=12)
         self.purchase_data = purchase_data
         
-        # Получаем доступные цвета текущей темы
         style = tb.Style()
         self.bg = style.colors.bg
         self.fg = style.colors.fg
-        self.border = style.colors.border    # часто есть
-        # У некоторых тем border отсутствует → fallback
+        self.border = style.colors.border   
         if self.border is None:
             self.border = "#888888"
 
@@ -21,7 +19,6 @@ class DaysCounterWidget(tb.Frame):
         self._calculate_days()
     
     def _create_widget(self):
-        # ----------- Заголовок ------------
         header = tb.Frame(self, padding=8)
         header.pack(fill="x")
 
@@ -38,7 +35,6 @@ class DaysCounterWidget(tb.Frame):
             bootstyle="secondary"
         ).pack(anchor="w", pady=(2, 0))
 
-        # ---------- Блок подсчёта дней ----------
         self.days_frame = tb.LabelFrame(
             self,
             text="Статус доставки",
@@ -54,7 +50,6 @@ class DaysCounterWidget(tb.Frame):
         )
         self.days_label.pack()
 
-        # ---------- Блок статуса ----------
         status_container = tb.Frame(self, padding=6)
         status_container.pack(fill="x")
 
@@ -90,7 +85,6 @@ class DaysCounterWidget(tb.Frame):
 
             delivered = "україні" in status_name or self.purchase_data.get("is_delivered", False)
 
-            # ----------- Если авто уже доставлено -----------
             if delivered:
                 days_passed = (today - est_date).days
                 if days_passed >= 0:
@@ -101,7 +95,6 @@ class DaysCounterWidget(tb.Frame):
                     self.days_frame.configure(bootstyle="warning")
                 return
 
-            # ----------- Если авто ещё в пути -----------
             if est_date < today:
                 days_late = (today - est_date).days
                 self.days_label.config(text=f"⚠️ Запізнення: {days_late} дн.")

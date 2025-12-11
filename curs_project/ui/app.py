@@ -28,12 +28,10 @@ from config import DB_CONFIG, ASSETS_DIR, MAP_COORDINATES, CANVAS_WIDTH, CANVAS_
 from database import DatabaseInitializer, safe_connect
 from ui.widgets import CalendarDialog, CarCard, ModernCRUDDialog, DaysCounterWidget, ImageCarousel, MapWidget
 
-# Создаем SSL контекст один раз
 ssl_context = ssl.create_default_context()
 ssl_context.check_hostname = False
 ssl_context.verify_mode = ssl.CERT_NONE
 
-# Константы для стилей
 COLORS = {
     'primary': '#007bff',
     'success': '#28a745',
@@ -50,8 +48,7 @@ class EnhancedAutoTrackerApp(tb.Window):
         self.title("Auto Tracker Pro — Advanced Vehicle Tracking")
         self.geometry(f"{self.winfo_screenwidth()}x{self.winfo_screenheight()}")
         self.state('zoomed')
-        
-        # Загрузка иконки если она существует
+
         self._load_app_icon()
         
         if not DatabaseInitializer.initialize_database():
@@ -72,7 +69,6 @@ class EnhancedAutoTrackerApp(tb.Window):
         self._build_login_ui()
         
     def _load_app_icon(self):
-        """Корректная загрузка иконки для Windows / macOS / Linux"""
         try:
             png_path = os.path.join(ASSETS_DIR, "app_icon.png")
             ico_path = os.path.join(ASSETS_DIR, "app_icon.ico")
@@ -81,26 +77,23 @@ class EnhancedAutoTrackerApp(tb.Window):
             system = platform.system().lower()
 
             if system == "windows":
-                # Windows поддерживает ТОЛЬКО ICO
                 if os.path.exists(ico_path):
                     self.iconbitmap(ico_path)
                 else:
                     print("⚠️ ICON (.ico) not found!")
             
-            elif system == "darwin":  # macOS
-                # На macOS .ico может не загрузиться → загружаем PNG
+            elif system == "darwin":  
                 if os.path.exists(png_path):
                     try:
                         img = ImageTk.PhotoImage(Image.open(png_path))
                         self.tk.call('wm', 'iconphoto', self._w, img)
-                        self._app_icon_ref = img  # важно: не дать GC удалить ссылку
+                        self._app_icon_ref = img  
                     except Exception as e:
                         print(f"Error loading PNG icon: {e}")
                 else:
                     print("⚠️ PNG icon not found!")
             
             else:
-                # Linux: обе опции обычно работают
                 if os.path.exists(png_path):
                     img = ImageTk.PhotoImage(Image.open(png_path))
                     self.tk.call('wm', 'iconphoto', self._w, img)
@@ -112,7 +105,6 @@ class EnhancedAutoTrackerApp(tb.Window):
             print(f"⚠️ Не удалось загрузить иконку: {e}")
 
     def center_window(self, window, width, height):
-        """Центрирование дочерних окон относительно главного"""
         window.update_idletasks()
         parent_x = self.winfo_rootx()
         parent_y = self.winfo_rooty()
@@ -124,7 +116,6 @@ class EnhancedAutoTrackerApp(tb.Window):
         window.geometry(f"{width}x{height}+{x}+{y}")
 
     def _get_table_columns(self, table):
-        """Получение колонок таблицы с обработкой ошибок"""
         if not self.conn:
             return []
         
@@ -139,7 +130,6 @@ class EnhancedAutoTrackerApp(tb.Window):
             return []
 
     def _get_primary_key(self, table):
-        """Получение первичного ключа таблицы"""
         try:
             cur = self.conn.cursor()
             cur.execute(f"SHOW KEYS FROM `{table}` WHERE Key_name = 'PRIMARY'")
@@ -154,7 +144,6 @@ class EnhancedAutoTrackerApp(tb.Window):
             return None
 
     def _is_foreign_key(self, table, column):
-        """Проверка является ли колонка внешним ключом"""
         try:
             cur = self.conn.cursor()
             cur.execute(f"""
@@ -171,7 +160,6 @@ class EnhancedAutoTrackerApp(tb.Window):
             return False
 
     def _get_foreign_key_info(self, table, column):
-        """Получение информации о внешнем ключе"""
         try:
             cur = self.conn.cursor()
             cur.execute(f"""
@@ -188,7 +176,6 @@ class EnhancedAutoTrackerApp(tb.Window):
             return (None, None)
 
     def _get_foreign_key_values(self, table, column):
-        """Получение значений для внешнего ключа"""
         try:
             cur = self.conn.cursor()
             cur.execute(f"SHOW COLUMNS FROM `{table}`")
@@ -216,7 +203,6 @@ class EnhancedAutoTrackerApp(tb.Window):
             return []
 
     def _export_table_to_excel(self, table):
-        """Экспорт таблицы в Excel"""
         if not PANDAS_AVAILABLE:
             messagebox.showerror("Помилка", "Для експорту в Excel встановіть: pip install pandas openpyxl")
             return
@@ -245,7 +231,6 @@ class EnhancedAutoTrackerApp(tb.Window):
             messagebox.showerror("Помилка", f"Помилка експорту: {str(e)}")
 
     def _export_to_csv(self, table=None):
-        """Экспорт таблицы в CSV"""
         if not table:
             table = self.current_table
             
@@ -272,7 +257,6 @@ class EnhancedAutoTrackerApp(tb.Window):
                 messagebox.showerror("Помилка", f"Помилка експорту: {e}")
 
     def _export_current_table(self, format_type):
-        """Экспорт текущей таблицы в указанном формате"""
         if not hasattr(self, 'current_table') or not self.current_table:
             messagebox.showwarning("Увага", "Спочатку виберіть таблицю")
             return
@@ -283,31 +267,20 @@ class EnhancedAutoTrackerApp(tb.Window):
             self._export_to_csv(self.current_table)
 
     def _build_login_ui(self):
-        """Красивый современный интерфейс входа"""
-
-        # Очистка окна
         for w in self.winfo_children():
             w.destroy()
 
-        # -------------------------------------------------------
-        #               Основной контейнер (2 колонки)
-        # -------------------------------------------------------
         main_container = tb.Frame(self, padding=20)
         main_container.pack(fill="both", expand=True)
 
-        # -------------------------------------------------------
-        #                     ЛЕВАЯ ЧАСТЬ
-        # -------------------------------------------------------
         left_side = tb.Frame(main_container, padding=40)
         left_side.pack(side="left", fill="both", expand=True)
 
-        # ----- ЛОГО ИЗ ФАЙЛА (assets/app_icon.jpg) -----
         icon_path = os.path.join(ASSETS_DIR, "icon.png")
 
         try:
             pil = Image.open(icon_path)
-            
-            # Уменьшаем логотип, сохраняя пропорции
+
             pil.thumbnail((180, 180), Image.Resampling.LANCZOS)
 
             photo = ImageTk.PhotoImage(pil)
@@ -318,7 +291,6 @@ class EnhancedAutoTrackerApp(tb.Window):
 
         except Exception as e:
             print(f"Не удалось загрузить иконку приложения: {e}")
-            # fallback — если файл отсутствует
             tb.Label(left_side, text="🚗", font=("Segoe UI", 60)).pack(pady=10)
 
 
@@ -334,7 +306,6 @@ class EnhancedAutoTrackerApp(tb.Window):
             font=("Segoe UI", 12)
         ).pack(pady=5)
 
-        # Список возможностей (делаем аккуратно)
         features_frame = tb.Frame(left_side)
         features_frame.pack(pady=20)
 
@@ -354,13 +325,9 @@ class EnhancedAutoTrackerApp(tb.Window):
                 font=("Segoe UI", 11)
             ).pack(anchor="w", pady=3)
 
-        # -------------------------------------------------------
-        #                     ПРАВАЯ ЧАСТЬ (ФОРМА)
-        # -------------------------------------------------------
         right_side = tb.Frame(main_container)
         right_side.pack(side="right", fill="both", expand=True)
 
-        # Форма в виде карточки
         form_card = tb.Frame(
             right_side,
             padding=30,
@@ -375,7 +342,6 @@ class EnhancedAutoTrackerApp(tb.Window):
             font=("Segoe UI", 20, "bold")
         ).pack(pady=10)
 
-        # ---------------- Поле логина ----------------
         tb.Label(
             form_card,
             text="Логін",
@@ -386,7 +352,6 @@ class EnhancedAutoTrackerApp(tb.Window):
         self.entry_username.pack(fill="x", pady=5)
         self.entry_username.bind("<Return>", lambda e: self._do_login())
 
-        # ---------------- Поле пароля ----------------
         tb.Label(
             form_card,
             text="Пароль",
@@ -400,7 +365,6 @@ class EnhancedAutoTrackerApp(tb.Window):
         self.entry_password.pack(side="left", fill="x", expand=True)
         self.entry_password.bind("<Return>", lambda e: self._do_login())
 
-        # Значок показать/скрыть пароль
         self.password_visible = False
 
         def toggle_password():
@@ -421,8 +385,6 @@ class EnhancedAutoTrackerApp(tb.Window):
         )
         eye_btn.pack(side="right", padx=5)
 
-
-        # ---------------- Кнопка входа ----------------
         login_btn = tb.Button(
             form_card,
             text="Увійти",
@@ -432,7 +394,6 @@ class EnhancedAutoTrackerApp(tb.Window):
         )
         login_btn.pack(pady=20)
 
-        # ---------------- Демо-кнопки ----------------
         demo_frame = tb.Frame(form_card)
         demo_frame.pack(pady=10)
 
@@ -453,7 +414,6 @@ class EnhancedAutoTrackerApp(tb.Window):
         ).pack(side="left", padx=5)
 
     def _demo_login(self, user_type):
-        """Заполнение демо-данных для входа"""
         if user_type == "admin":
             self.entry_username.delete(0, 'end')
             self.entry_password.delete(0, 'end')
@@ -467,7 +427,6 @@ class EnhancedAutoTrackerApp(tb.Window):
         self.after(100, self._do_login)
 
     def _do_login(self):
-        """Выполнение входа в систему"""
         username = self.entry_username.get().strip()
         pwd = self.entry_password.get().strip()
         
@@ -518,7 +477,6 @@ class EnhancedAutoTrackerApp(tb.Window):
                     pass
 
     def _build_main_ui(self):
-        """Построение основного интерфейса"""
         for w in self.winfo_children():
             w.destroy()
 
@@ -526,7 +484,6 @@ class EnhancedAutoTrackerApp(tb.Window):
         self._create_main_content()
 
     def _create_top_bar(self):
-        """Создание верхней панели"""
         topbar = tb.Frame(self, bootstyle="primary")
         topbar.pack(fill="x", padx=0, pady=0)
 
@@ -553,7 +510,6 @@ class EnhancedAutoTrackerApp(tb.Window):
                  command=self._logout).pack(side="left", padx=3)
 
     def _create_main_content(self):
-        """Создание основного контента"""
         main_container = tb.Frame(self)
         main_container.pack(fill="both", expand=True, padx=8, pady=8)
 
@@ -563,12 +519,11 @@ class EnhancedAutoTrackerApp(tb.Window):
             self._build_user_dashboard(main_container)
 
     def _build_admin_dashboard(self, parent):
-        """Построение админ-панели"""
         SIDEBAR_WIDTH = 260
 
         self.left_frame = tb.Frame(parent, width=SIDEBAR_WIDTH)
         self.left_frame.pack(side="left", fill="y", padx=(0, 8))
-        self.left_frame.pack_propagate(False)  # фіксована ширина
+        self.left_frame.pack_propagate(False)  
 
         self.main_content = tb.Frame(parent)
         self.main_content.pack(side="left", fill="both", expand=True)
@@ -577,9 +532,6 @@ class EnhancedAutoTrackerApp(tb.Window):
         self._show_admin_dashboard()
 
     def _build_admin_sidebar(self):
-        """Побудова кольорової адмін-панелі"""
-        
-        # HEADER
         sidebar_header = tb.Frame(self.left_frame, bootstyle="primary", padding=12)
         sidebar_header.pack(fill="x", pady=(0, 12))
 
@@ -590,11 +542,9 @@ class EnhancedAutoTrackerApp(tb.Window):
             bootstyle="inverse-primary"
         ).pack()
 
-        # MAIN NAVIGATION
         nav_frame = tb.Frame(self.left_frame, padding=5)
         nav_frame.pack(fill="x", pady=10)
 
-        # NEW COLORS FOR BUTTONS
         main_functions = [
             ("📊 Головна", "dashboard", "primary"),
             ("🚗 Авто", "purchases_visual", "info"),
@@ -610,11 +560,9 @@ class EnhancedAutoTrackerApp(tb.Window):
                 padding=8
             ).pack(fill="x", pady=4)
 
-        # SEPARATOR
         sep = ttk.Separator(nav_frame, orient='horizontal')
         sep.pack(fill='x', pady=10)
 
-        # TABLE MANAGEMENT
         tb.Button(
             nav_frame,
             text="🛠️ Управління таблицями",
@@ -625,7 +573,6 @@ class EnhancedAutoTrackerApp(tb.Window):
 
 
     def _show_table_management(self):
-        """Показ диалога управления таблицами"""
         table_dialog = tb.Toplevel(self)
         table_dialog.title("Управління таблицями")
         table_dialog.geometry("400x450")
@@ -659,7 +606,6 @@ class EnhancedAutoTrackerApp(tb.Window):
                  command=table_dialog.destroy).pack(pady=12)
 
     def _admin_navigate(self, destination):
-        """Навигация по админ-панели"""
         if destination == "dashboard":
             self._show_admin_dashboard()
         elif destination == "analytics":
@@ -670,12 +616,10 @@ class EnhancedAutoTrackerApp(tb.Window):
             self._show_table_in_main(destination)
 
     def _clear_main_content(self):
-        """Очистка основного контента"""
         for w in self.main_content.winfo_children():
             w.destroy()
 
     def _show_admin_dashboard(self):
-        """Показать админ-дашборд"""
         self._clear_main_content()
         
         welcome_card = tb.Frame(self.main_content, bootstyle="info")
@@ -786,10 +730,8 @@ class EnhancedAutoTrackerApp(tb.Window):
                     bootstyle="danger").pack(pady=10)
 
     def _show_purchases_visual(self):
-        """Показать покупки в виде карточек (оновлений дизайн фільтрів)"""
         self._clear_main_content()
-        
-        # ---------- Заголовок ----------
+
         header_frame = tb.Frame(self.main_content)
         header_frame.pack(fill="x", pady=(0, 8))
         
@@ -827,7 +769,6 @@ class EnhancedAutoTrackerApp(tb.Window):
             command=lambda: self._show_table_in_main("purchases")
         ).pack(side="left", padx=2)
 
-        # ---------- Картка фільтрів ----------
         filters_card = tb.LabelFrame(
             self.main_content,
             text="Фільтри",
@@ -835,11 +776,9 @@ class EnhancedAutoTrackerApp(tb.Window):
         )
         filters_card.pack(fill="x", pady=5)
 
-        # Перша лінія — комбобокси
         row1 = tb.Frame(filters_card)
         row1.pack(fill="x", pady=3)
 
-        # Статус
         status_block = tb.Frame(row1, padding=(5, 2))
         status_block.pack(side="left", padx=5, fill="x", expand=True)
 
@@ -861,7 +800,6 @@ class EnhancedAutoTrackerApp(tb.Window):
         status_combo.pack(fill="x", pady=2)
         status_combo.bind("<<ComboboxSelected>>", self._load_purchases_cards)
 
-        # Країна
         country_block = tb.Frame(row1, padding=(5, 2))
         country_block.pack(side="left", padx=5, fill="x", expand=True)
 
@@ -890,7 +828,6 @@ class EnhancedAutoTrackerApp(tb.Window):
         except Error as e:
             print(f"Помилка завантаження країн: {e}")
 
-        # Рік
         year_block = tb.Frame(row1, padding=(5, 2))
         year_block.pack(side="left", padx=5, fill="x")
 
@@ -913,7 +850,6 @@ class EnhancedAutoTrackerApp(tb.Window):
         year_combo.pack(fill="x", pady=2)
         year_combo.bind("<<ComboboxSelected>>", self._load_purchases_cards)
 
-        # Друга лінія — пошук + кнопки
         row2 = tb.Frame(filters_card)
         row2.pack(fill="x", pady=5)
 
@@ -953,7 +889,6 @@ class EnhancedAutoTrackerApp(tb.Window):
             command=self._reset_filters
         ).pack(side="right", padx=5)
 
-        # ---------- Контейнер карток ----------
         cards_container = tb.Frame(self.main_content)
         cards_container.pack(fill="both", expand=True, pady=8)
         
@@ -976,7 +911,6 @@ class EnhancedAutoTrackerApp(tb.Window):
 
     
     def _reset_filters(self):
-        """Сброс фильтров"""
         self.status_filter.set("all")
         self.country_filter.set("all")
         self.year_filter.set("all")
@@ -984,7 +918,6 @@ class EnhancedAutoTrackerApp(tb.Window):
         self._load_purchases_cards()
     
     def _load_purchases_cards(self, event=None):
-        """Загрузка карточек покупок"""
         for w in self.cards_frame.winfo_children():
             w.destroy()
         
@@ -1047,7 +980,6 @@ class EnhancedAutoTrackerApp(tb.Window):
             messagebox.showerror("Помилка", f"Помилка завантаження: {e}")
     
     def _filter_purchases_cards(self):
-        """Фильтрация карточек покупок"""
         search_text = self.search_var.get().lower()
         if search_text == "Пошук по VIN, марці, моделі...":
             search_text = ""
@@ -1118,7 +1050,6 @@ class EnhancedAutoTrackerApp(tb.Window):
             messagebox.showerror("Помилка", f"Помилка пошуку: {e}")
 
     def _show_purchase_details(self, purchase):
-        """Показать детали покупки"""
         self.selected_purchase = purchase
         
         details_window = tb.Toplevel(self)
@@ -1233,7 +1164,6 @@ class EnhancedAutoTrackerApp(tb.Window):
         self._update_details_view()
     
     def _update_details_view(self):
-        """Обновление вида деталей (фото/карта)"""
         for w in self.details_view_container.winfo_children():
             w.destroy()
         
@@ -1247,7 +1177,6 @@ class EnhancedAutoTrackerApp(tb.Window):
             map_widget.pack(fill="both", expand=True)
 
     def _edit_purchase(self, purchase, parent_window):
-        """Редактирование покупки"""
         def save_data(updated_data, mode):
             try:
                 cur = self.conn.cursor()
@@ -1276,16 +1205,14 @@ class EnhancedAutoTrackerApp(tb.Window):
                         "purchases", "edit", purchase, on_save=save_data)
 
     def _quick_status_change(self, purchase):
-        """Быстрое изменение статуса покупки (оновлений дизайн)"""
         status_dialog = tb.Toplevel(self)
         status_dialog.title("Швидка зміна статусу")
-        status_dialog.geometry("380x380")
+        status_dialog.geometry("380x450")
         status_dialog.transient(self)
         status_dialog.grab_set()
         
-        self.center_window(status_dialog, 380, 380)
-        
-        # Заголовок
+        self.center_window(status_dialog, 380, 450)
+
         header = tb.Frame(status_dialog, bootstyle="primary", padding=10)
         header.pack(fill="x")
         
@@ -1295,8 +1222,7 @@ class EnhancedAutoTrackerApp(tb.Window):
             font=("Segoe UI", 12, "bold"),
             bootstyle="inverse-primary"
         ).pack(side="left")
-        
-        # Поточний статус
+
         current_status_frame = tb.Frame(status_dialog, padding=10)
         current_status_frame.pack(fill="x")
         
@@ -1313,7 +1239,6 @@ class EnhancedAutoTrackerApp(tb.Window):
             bootstyle="success"
         ).pack(anchor="w", pady=3)
 
-        # Карточка зі списком статусів
         list_card = tb.LabelFrame(
             status_dialog,
             text="Оберіть новий статус",
@@ -1329,7 +1254,6 @@ class EnhancedAutoTrackerApp(tb.Window):
             
             status_var = tb.StringVar(value=purchase['status_name'])
 
-            # Список статусів
             for status in statuses:
                 row = tb.Frame(list_card, padding=3)
                 row.pack(fill="x", pady=1)
@@ -1342,7 +1266,6 @@ class EnhancedAutoTrackerApp(tb.Window):
                 )
                 rb.pack(side="left", anchor="w")
 
-                # Позначаємо поточний статус
                 if status['status_name'] == purchase['status_name']:
                     tb.Label(
                         row,
@@ -1375,8 +1298,7 @@ class EnhancedAutoTrackerApp(tb.Window):
                         
                 except Error as e:
                     messagebox.showerror("Помилка", f"Помилка оновлення статусу: {str(e)}")
-            
-            # Кнопки знизу
+
             btn_frame = tb.Frame(status_dialog, padding=10)
             btn_frame.pack(fill="x")
             
@@ -1399,7 +1321,6 @@ class EnhancedAutoTrackerApp(tb.Window):
 
     
     def _add_new_purchase(self):
-        """Добавление новой покупки"""
         def save_data(data, mode):
             try:
                 cur = self.conn.cursor()
@@ -1422,7 +1343,6 @@ class EnhancedAutoTrackerApp(tb.Window):
         ModernCRUDDialog(self, "Додати нову покупку", "purchases", "add", on_save=save_data)
 
     def _show_table_in_main(self, table):
-        """Показать таблицу в основном окне"""
         self._clear_main_content()
         self.current_table = table
         
@@ -1697,13 +1617,11 @@ class EnhancedAutoTrackerApp(tb.Window):
                 command=self._show_admin_dashboard if self.current_user["role"] == "admin" else self._show_user_dashboard).pack(side="right", padx=3)
 
     def _show_analytics(self):
-        """Показать аналитику (улучшенная версия)"""
         self._clear_main_content()
 
         analytics_frame = tb.Frame(self.main_content)
         analytics_frame.pack(fill="both", expand=True, padx=20, pady=20)
 
-        # ---------------- HEADER ----------------
         header_frame = tb.Frame(analytics_frame)
         header_frame.pack(fill="x", pady=(0, 10))
 
@@ -1713,7 +1631,6 @@ class EnhancedAutoTrackerApp(tb.Window):
             font=("Segoe UI", 18, "bold")
         ).pack(side="left")
 
-        # кнопка создать отчёт
         tb.Button(
             header_frame,
             text="📄 Сформувати звіт",
@@ -1723,7 +1640,6 @@ class EnhancedAutoTrackerApp(tb.Window):
         ).pack(side="right")
 
 
-        # ---------------- QUERY ----------------
         try:
             cur = self.conn.cursor()
             cur.execute("""
@@ -1760,7 +1676,6 @@ class EnhancedAutoTrackerApp(tb.Window):
                 else:
                     style = "secondary"
 
-                # статус
                 tb.Label(
                     row,
                     text=status_name,
@@ -1769,7 +1684,6 @@ class EnhancedAutoTrackerApp(tb.Window):
                     font=("Segoe UI", 11)
                 ).pack(side="left")
 
-                # правильный процент
                 percent = int((count / max_value) * 100) if max_value else 0
 
                 pb = tb.Progressbar(
@@ -1792,7 +1706,6 @@ class EnhancedAutoTrackerApp(tb.Window):
             tb.Label(analytics_frame, text=f"Помилка завантаження аналітики: {e}",
                     bootstyle="danger").pack()
 
-        # BACK
         tb.Button(
             analytics_frame,
             text="← Назад",
@@ -1812,13 +1725,11 @@ class EnhancedAutoTrackerApp(tb.Window):
 
         selected = {"from": None, "to": None, "file": None}
 
-        # ---------- CARD ----------
         card = tb.Frame(dlg, padding=15, borderwidth=1, relief="solid")
         card.pack(fill="both", expand=True, padx=15, pady=15)
 
         tb.Label(card, text="📅 Оберіть діапазон дат", font=("Segoe UI", 14, "bold")).pack(pady=(0, 10))
 
-        # ---------- FROM DATE ----------
         frm_section = tb.Frame(card)
         frm_section.pack(fill="x", pady=6)
 
@@ -1837,7 +1748,6 @@ class EnhancedAutoTrackerApp(tb.Window):
 
         from_btn.configure(command=pick_from)
 
-        # ---------- TO DATE ----------
         to_section = tb.Frame(card)
         to_section.pack(fill="x", pady=6)
 
@@ -1856,7 +1766,6 @@ class EnhancedAutoTrackerApp(tb.Window):
 
         to_btn.configure(command=pick_to)
 
-        # ---- FILE SAVE PATH (ONLY ONE CHOICE) ----
         tb.Label(card, text="Файл звіту:", font=("Segoe UI", 11)).pack(pady=(10, 3))
 
         file_btn = tb.Button(card, text="📁 Обрати місце збереження", bootstyle="info")
@@ -1878,7 +1787,6 @@ class EnhancedAutoTrackerApp(tb.Window):
 
         file_btn.configure(command=pick_file)
 
-        # ---- GENERATE ----
         def generate():
             if not selected["from"] or not selected["to"]:
                 messagebox.showwarning("Помилка", "Оберіть обидві дати.")
@@ -1894,7 +1802,6 @@ class EnhancedAutoTrackerApp(tb.Window):
 
             dlg.destroy()
 
-            # Передаём параметры
             self._generate_report_range({
                 "from": selected["from"],
                 "to": selected["to"],
@@ -1921,13 +1828,11 @@ class EnhancedAutoTrackerApp(tb.Window):
         ext = os.path.splitext(file)[1].lower()
 
         try:
-            # ----- 1) Получаем все колонки таблицы purchases -----
-            cur = self.conn.cursor()  # обычный cursor!
+            cur = self.conn.cursor() 
             cur.execute("SHOW COLUMNS FROM purchases")
             columns = [col[0] for col in cur.fetchall()]
             cur.close()
 
-            # ----- 2) Забираем данные за период -----
             query = f"""
                 SELECT {", ".join(columns)}
                 FROM purchases
@@ -1946,7 +1851,6 @@ class EnhancedAutoTrackerApp(tb.Window):
                 messagebox.showinfo("Звіт", "Немає покупок за обраний період.")
                 return
 
-            # ----- 3) Сохранение CSV -----
             if ext == ".csv":
                 import csv
                 with open(file, "w", newline="", encoding="utf-8") as f:
@@ -1959,7 +1863,6 @@ class EnhancedAutoTrackerApp(tb.Window):
                         f"За період з {date_from} по {date_to} було куплено {total} автомобілів.\n"
                     )
 
-            # ----- 4) Сохранение Excel -----
             elif ext == ".xlsx":
                 import pandas as pd
                 from openpyxl import load_workbook
@@ -1982,12 +1885,11 @@ class EnhancedAutoTrackerApp(tb.Window):
 
 
     def _build_user_dashboard(self, parent):
-        """Построение пользовательской панели"""
         SIDEBAR_WIDTH = 260
 
         self.left_frame = tb.Frame(parent, width=SIDEBAR_WIDTH)
         self.left_frame.pack(side="left", fill="y", padx=(0, 8))
-        self.left_frame.pack_propagate(False)  # фіксована ширина
+        self.left_frame.pack_propagate(False)
 
         self.main_content = tb.Frame(parent)
         self.main_content.pack(side="left", fill="both", expand=True)
@@ -1996,9 +1898,6 @@ class EnhancedAutoTrackerApp(tb.Window):
         self._show_user_dashboard()
 
     def _build_user_sidebar(self):
-        """Побудова оновленої бокової панелі користувача (стиль як у адмін-панелі)"""
-
-        # HEADER — делаем аналогично admin sidebar
         header = tb.Frame(self.left_frame, bootstyle="primary", padding=12)
         header.pack(fill="x", pady=(0, 12))
 
@@ -2009,7 +1908,6 @@ class EnhancedAutoTrackerApp(tb.Window):
             bootstyle="inverse-primary"
         ).pack()
 
-        # NAVIGATION (аналогично адмін-панелі)
         nav_frame = tb.Frame(self.left_frame, padding=5)
         nav_frame.pack(fill="x", pady=10)
 
@@ -2028,13 +1926,8 @@ class EnhancedAutoTrackerApp(tb.Window):
                 command=lambda d=destination: self._user_navigate(d)
             ).pack(fill="x", pady=4)
 
-        # (при желании можно добавить разделитель как в admin)
-        # sep = ttk.Separator(nav_frame, orient="horizontal")
-        # sep.pack(fill="x", pady=10)
-
 
     def _user_navigate(self, destination):
-        """Навигация по пользовательской панели"""
         if destination == "user_dashboard":
             self._show_user_dashboard()
         elif destination == "my_purchases":
@@ -2043,7 +1936,6 @@ class EnhancedAutoTrackerApp(tb.Window):
             self._show_user_analytics()
 
     def _show_user_dashboard(self):
-        """Показать пользовательский дашборд"""
         self._clear_main_content()
         
         welcome_card = tb.Frame(self.main_content, bootstyle="info")
@@ -2148,7 +2040,6 @@ class EnhancedAutoTrackerApp(tb.Window):
             print(f"Помилка завантаження запізнілих авто для користувача: {e}")
 
     def _show_my_purchases(self):
-        """Показать мои покупки (оновлений дизайн фільтрів)"""
         self._clear_main_content()
         
         header_frame = tb.Frame(self.main_content)
@@ -2159,8 +2050,7 @@ class EnhancedAutoTrackerApp(tb.Window):
             text="Мої автомобілі",
             font=("Segoe UI", 16, "bold")
         ).pack(side="left")
-        
-        # ---------- Картка фільтрів ----------
+
         filters_card = tb.LabelFrame(
             self.main_content,
             text="Фільтри",
@@ -2168,11 +2058,9 @@ class EnhancedAutoTrackerApp(tb.Window):
         )
         filters_card.pack(fill="x", pady=5)
 
-        # Перша лінія — статус + рік
         row1 = tb.Frame(filters_card)
         row1.pack(fill="x", pady=3)
 
-        # Статус
         status_block = tb.Frame(row1, padding=(5, 2))
         status_block.pack(side="left", padx=5, fill="x", expand=True)
 
@@ -2194,7 +2082,6 @@ class EnhancedAutoTrackerApp(tb.Window):
         status_combo.pack(fill="x", pady=2)
         status_combo.bind("<<ComboboxSelected>>", self._load_my_purchases)
 
-        # Рік
         year_block = tb.Frame(row1, padding=(5, 2))
         year_block.pack(side="left", padx=5, fill="x")
 
@@ -2217,7 +2104,6 @@ class EnhancedAutoTrackerApp(tb.Window):
         year_combo.pack(fill="x", pady=2)
         year_combo.bind("<<ComboboxSelected>>", self._load_my_purchases)
 
-        # Друга лінія — пошук + кнопки
         row2 = tb.Frame(filters_card)
         row2.pack(fill="x", pady=5)
         
@@ -2256,8 +2142,7 @@ class EnhancedAutoTrackerApp(tb.Window):
             bootstyle="danger-outline",
             command=self._reset_user_filters
         ).pack(side="right", padx=5)
-        
-        # Контейнер карток
+
         cards_container = tb.Frame(self.main_content)
         cards_container.pack(fill="both", expand=True, pady=8)
         
@@ -2280,14 +2165,12 @@ class EnhancedAutoTrackerApp(tb.Window):
 
     
     def _reset_user_filters(self):
-        """Сброс пользовательских фильтров"""
         self.user_status_filter.set("all")
         self.user_year_filter.set("all")
         self.user_search_var.set("")
         self._load_my_purchases()
     
     def _load_my_purchases(self, event=None):
-        """Загрузка моих покупок"""
         for w in self.user_cards_frame.winfo_children():
             w.destroy()
         
@@ -2345,7 +2228,6 @@ class EnhancedAutoTrackerApp(tb.Window):
             messagebox.showerror("Помилка", f"Помилка завантаження: {e}")
     
     def _filter_my_purchases(self):
-        """Фильтрация моих покупок"""
         search_text = self.user_search_var.get().lower()
         if search_text == "Пошук по VIN, марці, моделі...":
             search_text = ""
@@ -2411,13 +2293,11 @@ class EnhancedAutoTrackerApp(tb.Window):
             messagebox.showerror("Помилка", f"Помилка пошуку: {e}")
 
     def _show_user_analytics(self):
-        """Показати персональну аналітику користувача"""
         self._clear_main_content()
 
         analytics_frame = tb.Frame(self.main_content)
         analytics_frame.pack(fill="both", expand=True, padx=20, pady=20)
 
-        # ───── Заголовок + кнопка звіту ─────────────────────────
         header_frame = tb.Frame(analytics_frame)
         header_frame.pack(fill="x", pady=(0, 10))
 
@@ -2435,7 +2315,6 @@ class EnhancedAutoTrackerApp(tb.Window):
             command=self._open_user_report_dialog
         ).pack(side="right")
 
-        # ───── SQL аналітика ─────────────────────────
         try:
             cur = self.conn.cursor()
             cur.execute("""
@@ -2454,13 +2333,11 @@ class EnhancedAutoTrackerApp(tb.Window):
             stats_frame = tb.Frame(analytics_frame)
             stats_frame.pack(fill="x", pady=10)
 
-            # Максимум потрібен для нормальної шкали
             max_value = max((c for (_, c) in status_stats), default=1)
 
             LABEL_WIDTH = 28
             NUMBER_WIDTH = 4
 
-            # ───── Вивід рядків аналітики ─────────────────────────
             for status_name, count in status_stats:
                 row = tb.Frame(stats_frame)
                 row.pack(fill="x", pady=4)
@@ -2510,7 +2387,6 @@ class EnhancedAutoTrackerApp(tb.Window):
                 bootstyle="danger"
             ).pack()
 
-        # ───── Кнопка назад ─────────────────────────
         tb.Button(
             analytics_frame,
             text="← Назад",
@@ -2534,7 +2410,6 @@ class EnhancedAutoTrackerApp(tb.Window):
 
         tb.Label(card, text="📅 Оберіть діапазон дат", font=("Segoe UI", 14, "bold")).pack(pady=(0, 10))
 
-        # --- From ---
         frm_section = tb.Frame(card)
         frm_section.pack(fill="x", pady=6)
 
@@ -2553,7 +2428,6 @@ class EnhancedAutoTrackerApp(tb.Window):
 
         from_btn.configure(command=pick_from)
 
-        # --- To ---
         to_section = tb.Frame(card)
         to_section.pack(fill="x", pady=6)
 
@@ -2572,7 +2446,6 @@ class EnhancedAutoTrackerApp(tb.Window):
 
         to_btn.configure(command=pick_to)
 
-        # --- SAVE PATH ---
         tb.Label(card, text="Файл звіту:", font=("Segoe UI", 11)).pack(pady=(10, 3))
 
         file_btn = tb.Button(card, text="📁 Обрати місце збереження", bootstyle="info")
@@ -2594,7 +2467,6 @@ class EnhancedAutoTrackerApp(tb.Window):
 
         file_btn.configure(command=pick_file)
 
-        # --- GENERATE ---
         def generate():
             if not selected["from"] or not selected["to"]:
                 messagebox.showwarning("Помилка", "Оберіть обидві дати.")
@@ -2610,7 +2482,6 @@ class EnhancedAutoTrackerApp(tb.Window):
 
             dlg.destroy()
 
-            # сохраняем диапазон для отображения в аналитике
             self.user_report_range = {
                 "from": str(selected["from"]),
                 "to": str(selected["to"])
@@ -2634,13 +2505,11 @@ class EnhancedAutoTrackerApp(tb.Window):
         ext = os.path.splitext(file)[1].lower()
 
         try:
-            # --- 1. Берём ВСЕ колонки purchases ---
             cur = self.conn.cursor()
             cur.execute("SHOW COLUMNS FROM purchases")
             columns = [col[0] for col in cur.fetchall()]
             cur.close()
 
-            # --- 2. Делаем запрос только для текущего пользователя ---
             query = f"""
                 SELECT {", ".join(columns)}
                 FROM purchases
@@ -2660,7 +2529,6 @@ class EnhancedAutoTrackerApp(tb.Window):
                 messagebox.showinfo("Звіт", "Немає ваших покупок за даний період.")
                 return
 
-            # --- CSV ---
             if ext == ".csv":
                 import csv
                 with open(file, "w", newline="", encoding="utf-8") as f:
@@ -2673,7 +2541,6 @@ class EnhancedAutoTrackerApp(tb.Window):
                         f"За період з {date_from} по {date_to} ви купили {total} автомобілів.\n"
                     )
 
-            # --- Excel ---
             elif ext == ".xlsx":
                 import pandas as pd
                 from openpyxl import load_workbook
@@ -2695,7 +2562,6 @@ class EnhancedAutoTrackerApp(tb.Window):
 
 
     def _toggle_theme(self):
-        """Переключение темы"""
         self.dark_mode = not self.dark_mode
         if self.dark_mode:
             self.style.theme_use("darkly")
@@ -2705,7 +2571,6 @@ class EnhancedAutoTrackerApp(tb.Window):
         self._build_main_ui()
 
     def _logout(self):
-        """Выход из системы"""
         try:
             if self.conn:
                 self.conn.close()
